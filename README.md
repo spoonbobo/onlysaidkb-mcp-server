@@ -74,7 +74,7 @@ You can also copy `env.example` to `.env` and modify it with your configuration.
 
 Using UV:
 ```bash
-uv run onlysaidkb-mcp-server
+uv run src/onlysaidkb_mcp/main.py
 ```
 
 Or using Python:
@@ -82,25 +82,48 @@ Or using Python:
 python -m onlysaidkb_mcp.main
 ```
 
-Or if installed globally:
-```bash
-onlysaidkb-mcp-server
-```
-
 ### Integration with MCP Clients
 
-Add to your MCP client configuration:
+#### For Claude Desktop
+
+Set the required environment variables:
+
+```bash
+export ONLYSAIDKB_BASE_URL="http://onlysaid-dev.com/api/kb"
+export ONLYSAIDKB_TIMEOUT="30"
+```
+
+Then edit your Claude Desktop config file and add the server configuration:
 
 ```json
 {
-  "onlysaidkb": {
-    "command": "onlysaidkb-mcp-server",
-    "env": {
-      "ONLYSAIDKB_BASE_URL": "http://onlysaid-dev.com/api/kb"
+  "mcpServers": {
+    "onlysaidkb": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "<full path to onlysaidkb-mcp-server directory>",
+        "run",
+        "src/onlysaidkb_mcp/main.py"
+      ],
+      "env": {
+        "ONLYSAIDKB_BASE_URL": "http://onlysaid-dev.com/api/kb",
+        "ONLYSAIDKB_TIMEOUT": "30"
+      }
     }
   }
 }
 ```
+
+> **Note**: Replace `<full path to onlysaidkb-mcp-server directory>` with the actual full path to where you cloned/downloaded this repository. You can find this path by navigating to the directory and running `pwd` (on macOS/Linux) or `cd` (on Windows).
+
+#### For OnlySaid Electron App
+
+When configuring the OnlysaidKB MCP Server in the OnlySaid Electron app:
+
+1. **OnlysaidKB MCP Server Path**: Enter the full path to the onlysaidkb-mcp-server directory
+2. **OnlysaidKB Base URL**: Enter your OnlysaidKB API base URL (e.g., `http://onlysaid-dev.com/api/kb`)
+3. **Request Timeout**: Optional timeout in seconds (default: 30)
 
 ### Example Usage
 
@@ -180,35 +203,18 @@ The server includes comprehensive error handling and will return detailed error 
 ## Development
 
 ### Project Structure
-
 ```
 onlysaidkb-mcp-server/
 ├── src/onlysaidkb_mcp/
 │   ├── __init__.py
-│   ├── main.py          # Entry point
-│   └── server.py        # MCP server implementation
+│   ├── server.py      # Main server implementation
+│   └── main.py        # Entry point
 ├── tests/
 │   ├── connectivity_test.py
 │   ├── test_onlysaidkb_api.py
 │   └── mcp_tools_test.py
-├── pyproject.toml
-└── README.md
-```
-
-### Code Quality
-
-```bash
-# Format code
-black src/ tests/
-
-# Sort imports
-isort src/ tests/
-
-# Type checking
-mypy src/
-
-# Run tests with coverage
-pytest --cov=src tests/
+├── pyproject.toml     # Project configuration
+└── README.md         # This file
 ```
 
 ### Adding New Tools
@@ -269,6 +275,11 @@ Test files included:
 4. **Timeout Errors**: 
    - Increase the `ONLYSAIDKB_TIMEOUT` environment variable
    - Check network connectivity to the OnlysaidKB service
+
+5. **Path Issues**:
+   - Ensure the full path to the onlysaidkb-mcp-server directory is correct
+   - Use absolute paths rather than relative paths
+   - Check that the `src/onlysaidkb_mcp/main.py` file exists in the specified directory
 
 ### Debug Mode
 Enable debug logging by setting environment variable:
