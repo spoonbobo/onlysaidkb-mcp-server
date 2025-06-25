@@ -11,7 +11,7 @@ import json
 
 async def test_connectivity():
     """Test basic connectivity to OnlysaidKB backend"""
-    base_url = os.getenv("ONLYSAIDKB_BASE_URL", "http://localhost:8000")
+    base_url = os.getenv("ONLYSAIDKB_BASE_URL", "http://onlysaid-dev.com/api/kb")
     timeout = int(os.getenv("ONLYSAIDKB_TIMEOUT", "10"))
     
     print(f"🔌 Testing connectivity to: {base_url}")
@@ -19,24 +19,9 @@ async def test_connectivity():
     
     async with httpx.AsyncClient(timeout=timeout) as client:
         
-        # Test 1: Basic health check
+        # Test 1: Basic server availability
         try:
-            print("\n1️⃣ Testing health endpoint...")
-            response = await client.get(f"{base_url}/health")
-            print(f"Status: {response.status_code}")
-            print(f"Response: {response.text}")
-            
-            if response.status_code == 200:
-                print("✅ Health check passed")
-            else:
-                print("❌ Health check failed")
-                
-        except Exception as e:
-            print(f"❌ Health check error: {str(e)}")
-        
-        # Test 2: Try to reach any endpoint to check if server is running
-        try:
-            print("\n2️⃣ Testing server availability...")
+            print("\n1️⃣ Testing server availability...")
             response = await client.get(f"{base_url}/")
             print(f"Status: {response.status_code}")
             print(f"Response: {response.text[:200]}...")
@@ -51,17 +36,19 @@ async def test_connectivity():
         except Exception as e:
             print(f"❌ Server availability error: {str(e)}")
         
-        # Test 3: Test a simple API endpoint
+        # Test 2: Test the actual API endpoint structure
         try:
-            print("\n3️⃣ Testing simple API endpoint...")
+            print("\n2️⃣ Testing API endpoint structure...")
             test_workspace_id = os.getenv("TEST_WORKSPACE_ID", "test-workspace")
             
-            response = await client.get(f"{base_url}/list_documents/{test_workspace_id}")
-            print(f"Status: {response.status_code}")
+            # Test the view endpoint (GET request)
+            response = await client.get(f"{base_url}/view/{test_workspace_id}")
+            print(f"View endpoint status: {response.status_code}")
             
             if response.status_code == 200:
                 result = response.json()
-                print(f"✅ API endpoint working - got {len(result) if isinstance(result, list) else 'unknown'} items")
+                print(f"✅ API endpoint working")
+                print(f"Data sources found: {len(result.get('dataSources', []))}")
                 print(f"Response preview: {json.dumps(result, indent=2)[:300]}...")
             elif response.status_code == 404:
                 print("⚠️ Workspace not found (expected for test)")
@@ -70,6 +57,34 @@ async def test_connectivity():
                 
         except Exception as e:
             print(f"❌ API endpoint error: {str(e)}")
+            
+        # Test 3: Test a POST endpoint
+        try:
+            print("\n3️⃣ Testing POST endpoint...")
+            
+            # Test the retrieve endpoint
+            test_payload = {
+                "workspace_id": "test-workspace",
+                "query": "test query",
+                "top_k": 3
+            }
+            
+            response = await client.post(
+                f"{base_url}/retrieve",
+                json=test_payload,
+                headers={"Content-Type": "application/json"}
+            )
+            print(f"Retrieve endpoint status: {response.status_code}")
+            
+            if response.status_code == 200:
+                result = response.json()
+                print(f"✅ POST endpoint working")
+                print(f"Response preview: {json.dumps(result, indent=2)[:300]}...")
+            else:
+                print(f"⚠️ POST endpoint response: {response.text[:200]}...")
+                
+        except Exception as e:
+            print(f"❌ POST endpoint error: {str(e)}")
 
 if __name__ == "__main__":
     print("🌐 OnlysaidKB MCP Connectivity Test")

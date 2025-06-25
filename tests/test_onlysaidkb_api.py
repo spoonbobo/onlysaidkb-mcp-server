@@ -12,7 +12,7 @@ from typing import Dict, Any, List, Optional
 
 class OnlysaidKBTestClient:
     def __init__(self):
-        self.base_url = os.getenv("ONLYSAIDKB_BASE_URL", "http://localhost:8000")
+        self.base_url = os.getenv("ONLYSAIDKB_BASE_URL", "http://onlysaid-dev.com")
         self.default_model = os.getenv("ONLYSAIDKB_DEFAULT_MODEL", "gpt-4")
         self.default_top_k = int(os.getenv("ONLYSAIDKB_DEFAULT_TOP_K", "5"))
         self.default_language = os.getenv("ONLYSAIDKB_DEFAULT_LANGUAGE", "en")
@@ -70,8 +70,8 @@ class OnlysaidKBTestClient:
         """Test listing knowledge bases in a workspace"""
         print(f"📚 Testing list knowledge bases for workspace: {self.test_workspace_id}")
         
-        # This endpoint doesn't need a JSON body, just the workspace ID in the URL
-        url = f"{self.base_url}/list_documents/{self.test_workspace_id}"
+        # Use the actual API endpoint structure
+        url = f"{self.base_url}/api/view/{self.test_workspace_id}"
         
         try:
             response = await self.session.get(url)
@@ -79,7 +79,8 @@ class OnlysaidKBTestClient:
             
             if response.status_code == 200:
                 result = response.json()
-                print(f"✅ Success: Listed {len(result) if isinstance(result, list) else 'unknown'} knowledge bases")
+                data_sources = result.get("dataSources", [])
+                print(f"✅ Success: Listed {len(data_sources)} knowledge bases")
                 return result
             else:
                 print(f"❌ List KB Error: {response.text}")
@@ -94,7 +95,7 @@ class OnlysaidKBTestClient:
         """Test getting knowledge base status"""
         print(f"📊 Testing KB status for: {kb_id}")
         
-        url = f"{self.base_url}/kb_status/{self.test_workspace_id}/{kb_id}"
+        url = f"{self.base_url}/api/kb_status/{self.test_workspace_id}/{kb_id}"
         
         try:
             response = await self.session.get(url)
@@ -120,17 +121,16 @@ class OnlysaidKBTestClient:
         model: Optional[str] = None,
         conversation_history: Optional[List[str]] = None,
         top_k: Optional[int] = None,
-        preferred_language: Optional[str] = None,
-        streaming: bool = False
+        preferred_language: Optional[str] = None
     ) -> Dict[str, Any]:
         """Test querying knowledge bases with AI generation"""
         print(f"🤖 Testing query knowledge base: '{query[:50]}...'")
         
-        # Prepare payload matching the server implementation
+        # Prepare payload matching the server implementation (non-streaming for MCP)
         payload = {
             "workspace_id": self.test_workspace_id,
             "query": query,
-            "streaming": streaming,
+            "streaming": False,
             "model": model or self.default_model,
             "top_k": top_k or self.default_top_k,
             "preferred_language": preferred_language or self.default_language,
@@ -144,7 +144,7 @@ class OnlysaidKBTestClient:
         
         print(f"📤 Query payload: {json.dumps(payload, indent=2)}")
         
-        return await self.make_api_request("/query", payload)
+        return await self.make_api_request("/api/query", payload)
     
     # Test 4: Retrieve from Knowledge Base (Main Tool)
     async def test_retrieve_from_knowledge_base(
@@ -169,14 +169,14 @@ class OnlysaidKBTestClient:
         
         print(f"📤 Retrieve payload: {json.dumps(payload, indent=2)}")
         
-        return await self.make_api_request("/retrieve", payload)
+        return await self.make_api_request("/api/retrieve", payload)
     
     # Test 5: View Workspace Structure
     async def test_view_workspace_structure(self, kb_id: Optional[str] = None) -> Dict[str, Any]:
         """Test viewing workspace/KB structure"""
         print(f"🏗️ Testing view workspace structure")
         
-        url = f"{self.base_url}/view/{self.test_workspace_id}"
+        url = f"{self.base_url}/api/view/{self.test_workspace_id}"
         if kb_id:
             url += f"?kb_id={kb_id}"
         

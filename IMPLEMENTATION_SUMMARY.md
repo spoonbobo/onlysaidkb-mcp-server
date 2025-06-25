@@ -26,7 +26,7 @@ onlysaidkb-mcp-server/
 
 ### 1. `query_knowledge_base` Tool
 - **Purpose**: Query knowledge bases with AI-generated answers
-- **Functionality**: Performs both document retrieval and AI generation
+- **Functionality**: Performs both document retrieval and AI generation (non-streaming for MCP)
 - **Parameters**:
   - `workspace_id` (required): Workspace containing the knowledge bases
   - `query` (required): Natural language query
@@ -36,7 +36,6 @@ onlysaidkb-mcp-server/
   - `top_k` (optional): Number of documents to retrieve
   - `preferred_language` (optional): Response language
   - `message_id` (optional): Message tracking ID
-  - `streaming` (optional): Streaming response mode
 
 ### 2. `retrieve_from_knowledge_base` Tool
 - **Purpose**: Pure document retrieval without AI generation
@@ -63,7 +62,7 @@ onlysaidkb-mcp-server/
 | TypeScript Method | MCP Implementation | Status |
 |-------------------|-------------------|---------|
 | `queryKnowledgeBase()` | `query_knowledge_base` tool | ✅ Complete |
-| `queryKnowledgeBaseNonStreaming()` | `query_knowledge_base` (streaming=false) | ✅ Complete |
+| `queryKnowledgeBaseNonStreaming()` | `query_knowledge_base` (always non-streaming) | ✅ Complete |
 | `retrieveFromKnowledgeBase()` | `retrieve_from_knowledge_base` tool | ✅ Complete |
 | `listKnowledgeBases()` | `knowledge_bases` resource | ✅ Complete |
 | `getKnowledgeBaseStatus()` | `kb/{kb_id}/status` resource | ✅ Complete |
@@ -71,18 +70,19 @@ onlysaidkb-mcp-server/
 
 ## 🌐 API Endpoints Expected
 
-The MCP server expects the following OnlysaidKB backend endpoints:
+The MCP server expects the following OnlysaidKB backend endpoints (relative to base URL):
 
 - `POST /query` - Query with AI generation
 - `POST /retrieve` - Document retrieval only
-- `GET /list_documents/{workspace_id}` - List knowledge bases
+- `GET /view/{workspace_id}` - View workspace structure and list knowledge bases
 - `GET /kb_status/{workspace_id}/{kb_id}` - Get KB status
-- `GET /view/{workspace_id}` - View workspace structure
+
+**Corrected Base URL**: `http://onlysaid-dev.com/api/kb` (includes `/api/kb` prefix)
 
 ## ⚙️ Configuration
 
 ### Required Environment Variables
-- `ONLYSAIDKB_BASE_URL` - Base URL of OnlysaidKB API
+- `ONLYSAIDKB_BASE_URL` - Base URL of OnlysaidKB API (default: `http://onlysaid-dev.com/api/kb`)
 
 ### Optional Environment Variables
 - `ONLYSAIDKB_DEFAULT_MODEL` - Default AI model (default: gpt-4)
@@ -133,7 +133,7 @@ pip install -e .
 ### Running the Server
 ```bash
 # Set environment variable
-export ONLYSAIDKB_BASE_URL="http://localhost:8000"
+export ONLYSAIDKB_BASE_URL="http://onlysaid-dev.com/api/kb"
 
 # Run server
 onlysaidkb-mcp-server

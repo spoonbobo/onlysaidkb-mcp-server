@@ -22,7 +22,7 @@ except ImportError:
 
 @dataclass
 class OnlysaidKBConfig:
-    base_url: str = os.getenv("ONLYSAIDKB_BASE_URL", "http://localhost:8000")
+    base_url: str = os.getenv("ONLYSAIDKB_BASE_URL", "http://onlysaid-dev.com/api/kb")
     default_model: str = os.getenv("ONLYSAIDKB_DEFAULT_MODEL", "gpt-4")
     default_top_k: int = int(os.getenv("ONLYSAIDKB_DEFAULT_TOP_K", "5"))
     default_language: str = os.getenv("ONLYSAIDKB_DEFAULT_LANGUAGE", "en")
@@ -30,16 +30,22 @@ class OnlysaidKBConfig:
 
 config = OnlysaidKBConfig()
 
-async def make_api_request(endpoint: str, data: Dict[str, Any]) -> Dict[str, Any]:
+async def make_api_request(endpoint: str, data: Optional[Dict[str, Any]] = None, method: str = "POST") -> Dict[str, Any]:
     """Make API request to OnlysaidKB backend"""
     url = f"{config.base_url}{endpoint}"
     
     async with httpx.AsyncClient(timeout=config.timeout) as client:
-        response = await client.post(
-            url,
-            json=data,
-            headers={"Content-Type": "application/json", "Accept": "application/json"}
-        )
+        if method.upper() == "GET":
+            response = await client.get(
+                url,
+                headers={"Accept": "application/json"}
+            )
+        else:
+            response = await client.post(
+                url,
+                json=data,
+                headers={"Content-Type": "application/json", "Accept": "application/json"}
+            )
         response.raise_for_status()
         return response.json()
 
@@ -52,8 +58,7 @@ async def query_knowledge_base(
     conversation_history: Optional[List[str]] = None,
     top_k: Optional[int] = None,
     preferred_language: Optional[str] = None,
-    message_id: Optional[str] = None,
-    streaming: bool = False
+    message_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Query knowledge bases and get AI-generated answers based on retrieved documents.
@@ -71,20 +76,17 @@ async def query_knowledge_base(
     - top_k: Number of top documents to retrieve (optional, defaults to 5)
     - preferred_language: Preferred language for the response (optional, defaults to 'en')
     - message_id: Message ID for tracking (optional)
-    - streaming: Whether to use streaming response (optional, defaults to False for MCP)
     
     Returns:
-    - Complete AI-generated answer with source information
+    - Complete AI-generated answer with source information (non-streaming)
     """
     
-    # Prepare the payload matching the TypeScript interface
+    # Prepare the payload matching the actual Python API (QueryRequest schema)
+    # MCP tools always use non-streaming mode for synchronous responses
     payload = {
         "workspace_id": workspace_id,
         "query": query,
-        "streaming": streaming,
-        "model": model or config.default_model,
-        "top_k": top_k or config.default_top_k,
-        "preferred_language": preferred_language or config.default_language,
+        "streaming": False,
     }
     
     # Add optional parameters if provided
@@ -92,6 +94,12 @@ async def query_knowledge_base(
         payload["knowledge_bases"] = knowledge_bases
     if conversation_history:
         payload["conversation_history"] = conversation_history
+    if top_k:
+        payload["top_k"] = top_k
+    if model:
+        payload["model"] = model
+    if preferred_language:
+        payload["preferred_language"] = preferred_language
     if message_id:
         payload["message_id"] = message_id
     
@@ -219,9 +227,11 @@ async def list_knowledge_bases_resource(workspace_id: str) -> str:
     - workspace_id: The workspace ID
     """
     try:
-        # Use the list_documents endpoint from the TypeScript service
-        result = await make_api_request(f"/list_documents/{workspace_id}", {})
-        return json.dumps(result, indent=2)
+        # Use the view endpoint to get data sources (knowledge bases)
+        result = await make_api_request(f"/view/{workspace_id}", method="GET")
+        # Extract just the data sources for this resource
+        kb_list = result.get("dataSources", [])
+        return json.dumps(kb_list, indent=2)
     except Exception as e:
         return f"Error retrieving knowledge bases: {str(e)}"
 
@@ -235,7 +245,7 @@ async def knowledge_base_status_resource(workspace_id: str, kb_id: str) -> str:
     - kb_id: The knowledge base ID
     """
     try:
-        result = await make_api_request(f"/kb_status/{workspace_id}/{kb_id}", {})
+        result = await make_api_request(f"/kb_status/{workspace_id}/{kb_id}", method="GET")
         return json.dumps(result, indent=2)
     except Exception as e:
         return f"Error retrieving knowledge base status: {str(e)}"
@@ -249,7 +259,7 @@ async def workspace_structure_resource(workspace_id: str) -> str:
     - workspace_id: The workspace ID
     """
     try:
-        result = await make_api_request(f"/view/{workspace_id}", {})
+        result = await make_api_request(f"/view/{workspace_id}", method="GET")
         return json.dumps(result, indent=2)
     except Exception as e:
         return f"Error retrieving workspace structure: {str(e)}"
