@@ -26,7 +26,7 @@ class OnlysaidKBConfig:
     default_model: str = os.getenv("ONLYSAIDKB_DEFAULT_MODEL", "gpt-4")
     default_top_k: int = int(os.getenv("ONLYSAIDKB_DEFAULT_TOP_K", "5"))
     default_language: str = os.getenv("ONLYSAIDKB_DEFAULT_LANGUAGE", "en")
-    timeout: int = int(os.getenv("ONLYSAIDKB_TIMEOUT", "30"))
+    timeout: int = int(os.getenv("ONLYSAIDKB_TIMEOUT", "60"))
 
 config = OnlysaidKBConfig()
 
@@ -120,6 +120,19 @@ async def query_knowledge_base(
         
         return result
         
+    except httpx.TimeoutException as e:
+        error_result = {
+            "error": f"Request timed out after {config.timeout} seconds. The knowledge base query is taking longer than expected.",
+            "timeout_seconds": config.timeout,
+            "_debug": {
+                "query_parameters": payload,
+                "endpoint_used": "/query",
+                "error_type": "timeout_error",
+                "timeout_config": config.timeout
+            }
+        }
+        return error_result
+        
     except httpx.HTTPStatusError as e:
         error_result = {
             "error": f"HTTP {e.response.status_code}: {e.response.text}",
@@ -194,6 +207,19 @@ async def retrieve_from_knowledge_base(
         
         return result
         
+    except httpx.TimeoutException as e:
+        error_result = {
+            "error": f"Request timed out after {config.timeout} seconds. The document retrieval is taking longer than expected.",
+            "timeout_seconds": config.timeout,
+            "_debug": {
+                "retrieval_parameters": payload,
+                "endpoint_used": "/retrieve",
+                "error_type": "timeout_error",
+                "timeout_config": config.timeout
+            }
+        }
+        return error_result
+        
     except httpx.HTTPStatusError as e:
         error_result = {
             "error": f"HTTP {e.response.status_code}: {e.response.text}",
@@ -232,6 +258,8 @@ async def list_knowledge_bases_resource(workspace_id: str) -> str:
         # Extract just the data sources for this resource
         kb_list = result.get("dataSources", [])
         return json.dumps(kb_list, indent=2)
+    except httpx.TimeoutException as e:
+        return f"Timeout error: Request timed out after {config.timeout} seconds while retrieving knowledge bases"
     except Exception as e:
         return f"Error retrieving knowledge bases: {str(e)}"
 
@@ -247,6 +275,8 @@ async def knowledge_base_status_resource(workspace_id: str, kb_id: str) -> str:
     try:
         result = await make_api_request(f"/kb_status/{workspace_id}/{kb_id}", method="GET")
         return json.dumps(result, indent=2)
+    except httpx.TimeoutException as e:
+        return f"Timeout error: Request timed out after {config.timeout} seconds while retrieving knowledge base status"
     except Exception as e:
         return f"Error retrieving knowledge base status: {str(e)}"
 
@@ -261,6 +291,8 @@ async def workspace_structure_resource(workspace_id: str) -> str:
     try:
         result = await make_api_request(f"/view/{workspace_id}", method="GET")
         return json.dumps(result, indent=2)
+    except httpx.TimeoutException as e:
+        return f"Timeout error: Request timed out after {config.timeout} seconds while retrieving workspace structure"
     except Exception as e:
         return f"Error retrieving workspace structure: {str(e)}"
 
